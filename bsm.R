@@ -1,5 +1,6 @@
 library(ggplot2)
 library(reshape2)
+library(gridExtra)
 #provided data
 option <- data.frame(Strike = c(50, 45, 20),
                      type = c("C", "C","P"),
@@ -122,17 +123,13 @@ plot <- function (plot_df){
       d = rbind(d, calc_grph)
   }
   graph2 <- melt(d, id=c("groupID","dummy","volatility"))
+  
   plot <- ggplot(graph2, aes(dummy, volatility, group=factor(groupID), colour=factor(groupID) )) + 
     geom_line(size=2) +
     labs(x="Option Price",y="Implied Volatility") + 
-    ggtitle("Price-Volatility Chart") 
-  
-  # plot <- qplot(dummy, volatility, data=graph2, group=groupID, 
-  #               colour=groupID, geom='line', 
-  #               main = "Price-Volatility Chart",
-  #               xlab="Price", ylab="Implied Volatility") +  
-  #               labs(colour = 'Group ID') + 
-  #               geom_smooth(aes(group=interaction(groupID))) 
+    ggtitle("Price-Volatility Chart") +
+    labs(color='Option Number') +
+    xlim(0, 200)
   
   print(plot)
   print("Finished Running.")
@@ -140,7 +137,7 @@ plot <- function (plot_df){
 
 #call functions to calculate and print the result and plot
 result <- plotImpliedVol(option)
-print(result)
+print(t(result))
 print(proc.time() - start)
 plot (result)
 
