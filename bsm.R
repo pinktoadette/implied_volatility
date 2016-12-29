@@ -122,7 +122,7 @@ plot <- function (plot_df){
       d = rbind(d, calc_grph)
   }
   graph2 <- melt(d, id=c("groupID","dummy","volatility"))
-  plot <- ggplot(graph2, aes(dummy, volatility, group=groupID, colour=groupID )) + 
+  plot <- ggplot(graph2, aes(dummy, volatility, group=factor(groupID), colour=factor(groupID) )) + 
     geom_line(size=2) +
     labs(x="Option Price",y="Implied Volatility") + 
     ggtitle("Price-Volatility Chart") 
