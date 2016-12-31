@@ -1,6 +1,5 @@
 library(ggplot2)
 library(reshape2)
-library(gridExtra)
 #provided data
 option <- data.frame(Strike = c(50, 45, 20),
                      type = c("C", "C","P"),
@@ -21,14 +20,13 @@ start <- proc.time()
 
 #generalized bsm model, input df and volatility
 black <- function(x, sigma){
-  x['d1'] = (log10(x['futurePrice']/x['Strike']) + ((d_rate+(sigma**2)/2)*x['time_to_expiry']))/sigma*sqrt(x['time_to_expiry'])
+  x['d1'] = (log10(x['futurePrice']/x['Strike']) + ((d_rate+(sigma^2)/2)*x['time_to_expiry']))/(sigma*sqrt(x['time_to_expiry']))
   x['d2'] = x['d1'] - sigma*sqrt(x['time_to_expiry'])
   x['sigma'] <- sigma
   
-  #dummy option price
-  #inverse norm or norm
-  x['n_d1'] = dnorm(as.numeric(unlist(x['type']*x['d1'])), mean = 0, sd = 1, log = TRUE)
-  x['n_d2'] = dnorm(as.numeric(unlist(x['type']*x['d2'])), mean = 0, sd = 1, log = TRUE)
+  #dummy option price; inverse norm or norm
+  x['n_d1'] = pnorm(as.numeric(unlist(x['type']*x['d1'])), mean = 0, sd = 1)
+  x['n_d2'] = pnorm(as.numeric(unlist(x['type']*x['d2'])), mean = 0, sd = 1)
   
   if(x['type'] == 1) 
     x['dummy'] =  x['n_d1']*x['futurePrice'] - x['n_d2']*x['Strike']*exp(-d_rate*x['time_to_expiry'])
@@ -40,11 +38,11 @@ black <- function(x, sigma){
 plotImpliedVol=function(option){
   bsm <- apply(option, 1, function(x) {
     
-    #using Olog(n) to bisect find sigma; match dummy to listed option price
+    #use bisect method to find sigma; match dummy to listed option price
+    #find midpt then move left or right and compare left and right tolerance
     opti <- function(x, lower, upper){
       mid = (lower+ upper)/2
       
-      #bisect, then move left or right and compare left and right
       #walk left of midpt
       l_low = lower
       l_high = mid
@@ -60,11 +58,10 @@ plotImpliedVol=function(option){
       
       c_dummy = c(left_x['dummy'], right_x['dummy'])
       
-      #go left or right of price
+      #go left or right of price based on tolerance
       tolerance = abs(c_dummy- x['optionPrice'] )
       min = which.min(tolerance)
       
-      #handle of negative price?
       for (i in 1:length(tolerance)){
         if(tolerance[i] > default_tolerance){
           if (min == 1 ){ 
@@ -77,11 +74,11 @@ plotImpliedVol=function(option){
             low = r_low
             high = r_high
           }
+          x<- opti(black(x, x['sigma']), low, high)
         }
         else{
           break
         }
-        x<- opti(black(x, x['sigma']), low, high)
       }
       
       return(x)
@@ -92,6 +89,7 @@ plotImpliedVol=function(option){
   })
 }
 
+#make option plots
 plot <- function (plot_df){
   
   option <- as.data.frame(t(plot_df))
@@ -109,9 +107,7 @@ plot <- function (plot_df){
   graph_option <- data.frame(volatility = c(vol_increment))
   
   # For each option we will create a new set of df; each new df is then plotted
-  # Question didn't ask to plot what to volatility; will assume price? 
-  # but pretty much this can graph any column since every calculation is stored
-  d = NULL
+  d_graph = NULL
   for (i in 1:nrow(option)){
       data <- (option[i,])
       data$groupID <- i
@@ -120,19 +116,19 @@ plot <- function (plot_df){
       
       #calculate each volatility increment
       calc_grph <- as.data.frame(t(apply(graph, 1, function(graph) black(graph,graph['volatility']))))
-      d = rbind(d, calc_grph)
+      d_graph = rbind(d_graph, calc_grph)
   }
-  graph2 <- melt(d, id=c("groupID","dummy","volatility"))
+  graph2 <- melt(d_graph, id=c("groupID","dummy","volatility"))
   
-  plot <- ggplot(graph2, aes(dummy, volatility, group=factor(groupID), colour=factor(groupID) )) + 
+  diagram <- ggplot(graph2, aes(volatility,dummy, group=factor(groupID), colour=factor(groupID) )) + 
     geom_line(size=2) +
-    labs(x="Option Price",y="Implied Volatility") + 
+    labs(x="Implied Volatility" ,y="Option Price") + 
     ggtitle("Price-Volatility Chart") +
     labs(color='Option Number') +
-    xlim(0, 200)
+    facet_wrap(~groupID, ncol=2, scales = "free")
   
-  print(plot)
-  print("Finished Running.")
+  print(diagram)
+  print("Finished Running. Wait for plot.")
 }
 
 #call functions to calculate and print the result and plot
